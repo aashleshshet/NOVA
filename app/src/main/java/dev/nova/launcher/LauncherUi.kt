@@ -2,7 +2,14 @@
 package dev.nova.launcher
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
@@ -38,13 +45,15 @@ import kotlinx.coroutines.launch
     LaunchedEffect(message) { message?.let { snackbar.showSnackbar(it); model.message.value = null } }
     LaunchedEffect(homeSignal) { screen="home"; selected=null; query="" }
     BackHandler(screen != "home" || selected != null) { selected=null; screen="home"; query="" }
-    MaterialTheme(colorScheme=darkColorScheme()) {
-        Scaffold(snackbarHost={ SnackbarHost(snackbar) }) { padding ->
+    NovaTheme(state?.settings ?: Settings()) {
+        Scaffold(containerColor=if(state?.settings?.systemWallpaper==true && screen=="home") MaterialTheme.colorScheme.background.copy(alpha=.82f) else MaterialTheme.colorScheme.background,snackbarHost={ SnackbarHost(snackbar) }) { padding ->
             val s = state
             if(s == null) { Box(Modifier.fillMaxSize().padding(padding),contentAlignment=Alignment.Center) { CircularProgressIndicator() }; return@Scaffold }
             Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
-                when(screen) {
+                Crossfade(screen,label="launcher navigation",modifier=Modifier.weight(1f)) { destination ->
+                when(destination) {
                     "drawer" -> {
+                        Column(Modifier.fillMaxSize()) {
                         Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
                             IconButton(onClick={screen="home"}) { Icon(Icons.AutoMirrored.Filled.ArrowBack,"Back home") }
                             OutlinedTextField(query,{query=it},Modifier.weight(1f).testTag("app-search"),label={Text("Search apps")},singleLine=true,leadingIcon={Icon(Icons.Default.Search,null)})
@@ -52,7 +61,7 @@ import kotlinx.coroutines.launch
                         Row(Modifier.fillMaxWidth().padding(horizontal=20.dp),verticalAlignment=Alignment.CenterVertically) {
                             Text("${apps.size} apps",Modifier.weight(1f),style=MaterialTheme.typography.labelLarge)
                             var sortMenu by remember { mutableStateOf(false) }
-                            Box { TextButton(onClick={sortMenu=true}) { Text(if(s.settings.sort==SortOrder.RECENT) "Recently installed" else "A–Z"); Icon(Icons.Default.Sort,null) }
+                            Box { TextButton(onClick={sortMenu=true}) { Text(if(s.settings.sort==SortOrder.RECENT) "Recently installed" else "A–Z"); Icon(Icons.AutoMirrored.Filled.Sort,null) }
                                 DropdownMenu(sortMenu,{sortMenu=false}) { listOf(SortOrder.NAME,SortOrder.RECENT).forEach { order -> DropdownMenuItem(text={Text(if(order==SortOrder.NAME) "Name" else "Recently installed")},onClick={model.settings(s.settings.copy(sort=order));sortMenu=false}) } }
                             }
                         }
@@ -61,13 +70,20 @@ import kotlinx.coroutines.launch
                         LazyVerticalGrid(GridCells.Fixed(s.settings.columns),Modifier.fillMaxSize().testTag("app-drawer"),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(s.settings.spacing.dp)) {
                             items(filtered,key={it.component}) { app -> AppTile(app,model,s.settings,{model.launch(app.component)},{selected=app to null}) }
                         }
+                        }
                     }
                     "settings" -> {
-                        Row(verticalAlignment=Alignment.CenterVertically) { IconButton(onClick={screen="home"}) { Icon(Icons.AutoMirrored.Filled.ArrowBack,"Back home") }; Text("NOVA settings",style=MaterialTheme.typography.headlineMedium) }
+                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                        Row(verticalAlignment=Alignment.CenterVertically) { IconButton(onClick={screen="home"}) { Icon(Icons.AutoMirrored.Filled.ArrowBack,"Back home") }; Text("Studio",style=MaterialTheme.typography.headlineMedium) }
                         Button(onClick=activity::chooseHome,modifier=Modifier.padding(16.dp)) { Text("Set as default launcher") }
                         OutlinedButton(onClick=activity::installApk,modifier=Modifier.padding(horizontal=16.dp)) { Text("Install an APK") }
+                        Text("Appearance",Modifier.padding(20.dp),style=MaterialTheme.typography.titleLarge)
+                        ThemeMode.entries.forEach { mode -> Row(Modifier.fillMaxWidth().padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically) { RadioButton(s.settings.theme==mode,{model.settings(s.settings.copy(theme=mode))}); Text(mode.name.lowercase().replaceFirstChar { it.uppercase() }) } }
+                        Row(Modifier.fillMaxWidth().padding(20.dp),verticalAlignment=Alignment.CenterVertically) { Text("Glass surfaces",Modifier.weight(1f)); Switch(s.settings.glass,{model.settings(s.settings.copy(glass=it))}) }
+                        }
                     }
                     else -> HomeScreen(s,apps,model,onDrawer={screen="drawer"},onStudio={screen="settings"},onSelect={app,tile->selected=app to tile})
+                }
                 }
             }
         }
@@ -93,13 +109,14 @@ import kotlinx.coroutines.launch
     val byId=remember(apps) { apps.associateBy { it.component } }
     Column(Modifier.fillMaxSize().testTag("home-screen")) {
         Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
-            Text("NOVA",Modifier.weight(1f),style=MaterialTheme.typography.headlineLarge)
+            Text("NOVA",Modifier.weight(1f),style=MaterialTheme.typography.titleLarge)
             IconButton(onClick=onStudio) { Icon(Icons.Default.Tune,"Open customization studio") }
         }
+        HomeClock()
         HorizontalPager(pager,Modifier.weight(1f)) { index ->
             val page=state.pages[index]
             if(page.tiles.isEmpty()) Column(Modifier.fillMaxSize().padding(32.dp),verticalArrangement=Arrangement.Center) {
-                Text("Make room for what matters.",style=MaterialTheme.typography.headlineLarge)
+                Text("Make room for what matters.",style=MaterialTheme.typography.headlineMedium)
                 Spacer(Modifier.height(16.dp)); Text("Open your apps. Touch and hold one to add it here.",style=MaterialTheme.typography.bodyLarge)
                 Spacer(Modifier.height(24.dp)); Button(onClick=onDrawer) { Text("Choose your apps") }
             } else LazyVerticalGrid(GridCells.Fixed(state.settings.columns),Modifier.fillMaxSize(),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(state.settings.spacing.dp)) {
@@ -109,10 +126,10 @@ import kotlinx.coroutines.launch
             }
         }
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically) {
-            state.pages.forEachIndexed { i,_ -> TextButton(onClick={scope.launch { pager.animateScrollToPage(i) }}) { Text(if(pager.currentPage==i) "● ${i+1}" else "${i+1}") } }
+            state.pages.forEachIndexed { i,_ -> TextButton(onClick={scope.launch { pager.animateScrollToPage(i) }}) { Text(if(pager.currentPage==i) "Page ${i+1}" else "${i+1}") } }
             if(state.pages.size<12) IconButton(onClick={model.mutate(LauncherOps::addPage)}) { Icon(Icons.Default.Add,"Add home page") }
         }
-        Surface(Modifier.padding(horizontal=16.dp).fillMaxWidth(),shape=RoundedCornerShape(28.dp),tonalElevation=3.dp) {
+        GlassPanel(state.settings,Modifier.padding(horizontal=16.dp).fillMaxWidth()) {
             Row(Modifier.padding(12.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
                 if(state.dock.isEmpty()) TextButton(onClick=onDrawer) { Text("Add favorites to your dock") }
                 state.dock.forEach { tile -> val app=byId[tile.component] ?: AppEntry(tile.component,tile.component.substringBefore('/'),"Unavailable")
@@ -127,7 +144,7 @@ import kotlinx.coroutines.launch
 @Composable fun AppTile(app: AppEntry, model: LauncherViewModel, settings: Settings, onClick: ()->Unit, onLongClick: ()->Unit) {
     val icon by produceState<android.graphics.Bitmap?>(null,app.component) { value=model.catalog.icon(app.component) }
     Column(Modifier.fillMaxWidth().heightIn(min=72.dp).clip(RoundedCornerShape(16.dp)).combinedClickable(onClick=onClick,onLongClick=onLongClick).padding(4.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-        if(icon!=null) Image(icon!!.asImageBitmap(),app.label,Modifier.size(settings.iconSize.dp))
+        if(icon!=null) Image(icon!!.asImageBitmap(),app.label,Modifier.size(settings.iconSize.dp).then(when(settings.iconShape) { IconShape.CIRCLE -> Modifier.clip(CircleShape); IconShape.ROUNDED -> Modifier.clip(RoundedCornerShape(16.dp)); IconShape.ORIGINAL -> Modifier }))
         else Icon(Icons.Default.Apps,app.label,Modifier.size(settings.iconSize.dp))
         if(settings.labels) { Spacer(Modifier.height(8.dp)); Text(app.label,style=MaterialTheme.typography.labelMedium,maxLines=2,overflow=TextOverflow.Ellipsis,textAlign=TextAlign.Center) }
     }
