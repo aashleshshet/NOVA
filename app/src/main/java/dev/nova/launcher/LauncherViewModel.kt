@@ -19,6 +19,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val state = MutableStateFlow<LauncherState?>(null)
     val apps = MutableStateFlow<List<AppEntry>>(emptyList())
     val message = MutableStateFlow<String?>(null)
+    val usageRanking = UsageRanking(application)
+    val usage = MutableStateFlow<Map<String,Long>>(emptyMap())
     val loadingApps = MutableStateFlow(true)
     private var refreshJob: Job? = null
     private val receiver = object : BroadcastReceiver() {
@@ -33,7 +35,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private var stateJob: Job? = null
     fun reloadState() {
         stateJob?.cancel(); loadFailed.value=false
-        stateJob=viewModelScope.launch { store.state.catch { loadFailed.value=true; message.value="Could not read your saved layout. Restore a backup; existing data has been kept." }.collect { state.value=it } }
+        stateJob=viewModelScope.launch { store.state.catch { loadFailed.value=true; message.value="Could not read your saved layout. Restore a backup; existing data has been kept." }.collect { state.value=it
+            val cutoff=System.currentTimeMillis()-Suggestions.RETENTION_MS
+            if(it.history.values.any { record->record.lastLaunch<cutoff }) store.update { current->current.copy(history=current.history.filterValues { record->record.lastLaunch>=cutoff }) }
+        } }
     }
     init {
         reloadState()
@@ -47,14 +52,17 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         refreshJob = viewModelScope.launch {
             try { apps.value = catalog.discover() } catch (e: Exception) { if(e is kotlinx.coroutines.CancellationException) throw e; message.value = "Cannot read apps. Try reopening NOVA." }
             finally { loadingApps.value = false }
+            state.value?.settings?.let { settings -> usage.value=runCatching { usageRanking.read(settings) }.getOrDefault(emptyMap()) }
         }
     }
     fun mutate(change: (LauncherState) -> LauncherState) { viewModelScope.launch {
         try { store.update(change) } catch(e: Exception) { if(e is kotlinx.coroutines.CancellationException) throw e; message.value = e.message ?: "Could not save changes" }
     } }
+    fun resetSuggestions() { usage.value=emptyMap(); mutate { Suggestions.reset(it,System.currentTimeMillis()) } }
+    fun disableSuggestions() { usage.value=emptyMap(); mutate(Suggestions::disable) }
     fun settings(settings: Settings) = mutate { LayoutEditor.settings(it,settings) }
     fun pin(component: String, page: String?, dock: Boolean = false) = mutate { LauncherOps.pin(it,component,page,dock) }
     fun remove(id: String) = mutate { LauncherOps.remove(it,id) }
-    fun launch(component: String) { catalog.launch(component).onFailure { message.value = "This app is unavailable. It may have been removed or disabled."; refresh() } }
+    fun launch(component: String) { catalog.launch(component).onSuccess { mutate { Suggestions.record(it,component,System.currentTimeMillis()) } }.onFailure { message.value = "This app is unavailable. It may have been removed or disabled."; refresh() } }
     override fun onCleared() { getApplication<Application>().unregisterReceiver(receiver); super.onCleared() }
 }

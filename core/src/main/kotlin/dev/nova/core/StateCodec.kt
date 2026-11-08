@@ -18,7 +18,7 @@ object StateCodec {
         val s = state.settings
         require(s.columns in 3..6 && s.dockSize in 3..6 && s.iconSize in 36..72 && s.spacing in 4..24) { "Invalid layout settings" }
         require(s.accent in 0xFF000000..0xFFFFFFFF && s.background in 0xFF000000..0xFFFFFFFF) { "Colors must be opaque" }
-        require(s.iconPack.length <= 255)
+        require(s.iconPack.length <= 255 && s.usageSince >= 0)
         val tiles = state.pages.flatMap { it.tiles } + state.dock
         require(state.pages.all { it.tiles.size <= 120 } && state.dock.size <= 6) { "Too many shortcuts" }
         require(tiles.map { it.id }.distinct().size == tiles.size) { "Duplicate tile IDs" }
@@ -34,6 +34,6 @@ object StateCodec {
     }
     fun validComponent(value: String): Boolean = value.length in 3..512 && value.count { it == '/' } == 1 && value.none { it.isWhitespace() } && value.substringBefore('/').contains('.') && value.substringAfter('/').isNotEmpty()
     /** Host IDs and consent are device-specific; history is deliberately excluded. */
-    fun export(state: LauncherState): String = encode(state.copy(widgets = emptyList(), history = emptyMap(), settings = state.settings.copy(usageConsent = false, suggestions = false)))
-    fun restore(raw: String): LauncherState = decode(raw).let { it.copy(widgets = emptyList(), history = emptyMap(), settings = it.settings.copy(usageConsent = false, suggestions = false)) }
+    fun export(state: LauncherState): String = encode(state.copy(widgets = emptyList(), history = emptyMap(), settings = state.settings.copy(usageConsent = false, suggestions = false, usageSince = 0)))
+    fun restore(raw: String): LauncherState = decode(raw).let { it.copy(widgets = emptyList(), history = emptyMap(), settings = it.settings.copy(usageConsent = false, suggestions = false, usageSince = 0)) }
 }

@@ -27,7 +27,8 @@ import kotlinx.serialization.Serializable
     val swipeDown: GestureAction = GestureAction.SEARCH,
     val doubleTap: GestureAction = GestureAction.NONE,
     val suggestions: Boolean = false,
-    val usageConsent: Boolean = false
+    val usageConsent: Boolean = false,
+    val usageSince: Long = 0
 )
 
 @Serializable data class Tile(

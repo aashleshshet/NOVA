@@ -21,6 +21,7 @@ import kotlin.math.roundToInt
 
 @Composable fun StudioScreen(state: LauncherState, apps: List<AppEntry>, model: LauncherViewModel, activity: MainActivity, onBack: ()->Unit) {
     val s=state.settings
+    var consent by remember { mutableStateOf<String?>(null) }
     var widgetPicker by remember { mutableStateOf(false) }
     var packs by remember { mutableStateOf<List<IconPack>>(emptyList()) }
     LaunchedEffect(apps) { packs=model.catalog.iconPacks.discover() }
@@ -75,6 +76,21 @@ import kotlin.math.roundToInt
                 TextButton(onClick={model.mutate { LayoutEditor.removePage(it,page.id) }},enabled=state.pages.size>1 && page.tiles.isEmpty() && state.widgets.none { it.pageId==page.id }) { Text("Delete") }
             } }
             TextButton(onClick={model.mutate(LauncherOps::addPage)},enabled=state.pages.size<12) { Text("Add page") }
+            StudioHeading("Gestures")
+            Text("Swipe or double-tap the clock or empty home area. Android's edge navigation and widget touches stay available.",style=MaterialTheme.typography.bodyMedium)
+            GestureChoice("Swipe up",s.swipeUp) { model.settings(s.copy(swipeUp=it)) }
+            GestureChoice("Swipe down",s.swipeDown) { model.settings(s.copy(swipeDown=it)) }
+            GestureChoice("Double tap",s.doubleTap) { model.settings(s.copy(doubleTap=it)) }
+            StudioHeading("Suggestions & privacy")
+            ToggleRow("Local suggestions","Learn from apps you open through NOVA. Off by default.",s.suggestions) { if(it) consent="local" else model.disableSuggestions() }
+            if(s.suggestions) {
+                ToggleRow("Use Android usage access","Optional ranking using activity since your consent or last reset.",s.usageConsent) { if(it) consent="usage" else { model.usage.value=emptyMap();model.settings(s.copy(usageConsent=false)) } }
+                if(s.usageConsent) {
+                    Text(if(model.usageRanking.hasAccess()) "Android usage access is enabled." else "Usage access is not granted. Only NOVA launches are used.",style=MaterialTheme.typography.bodySmall)
+                    TextButton(onClick={activity.openSystem(Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS))}) { Text("Manage usage access") }
+                }
+                OutlinedButton(onClick=model::resetSuggestions) { Text("Reset suggestion history") }
+            }
             StudioHeading("Backup & restore")
             Text("Versioned JSON saves appearance, pages, dock and folders. Widget bindings, usage history and consent stay on this device. Restoring replaces the current layout.",style=MaterialTheme.typography.bodyMedium)
             Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) { OutlinedButton(onClick=activity::exportBackup) { Text("Save backup") }; OutlinedButton(onClick=activity::importBackup) { Text("Restore") } }
@@ -84,6 +100,13 @@ import kotlin.math.roundToInt
             Text("NOVA ${BuildConfig.VERSION_NAME} · Offline by design",style=MaterialTheme.typography.labelMedium)
             Spacer(Modifier.height(24.dp))
         }
+    }
+    consent?.let { kind ->
+        AlertDialog(onDismissRequest={consent=null},title={Text(if(kind=="local") "Enable local suggestions?" else "Use Android usage activity?")},text={Text(if(kind=="local") "NOVA will keep launch counts and last-opened times on this device to suggest apps. No data leaves your device. You can reset or disable this at any time; disabling deletes NOVA's history." else "NOVA can read app foreground activity through Android Usage Access. It will rank apps locally using activity after consent or reset, up to seven days. This data is never exported or sent to a server. Android will ask you to grant access separately.")},confirmButton={TextButton(onClick={
+            if(kind=="local") model.settings(s.copy(suggestions=true))
+            else { model.usage.value=emptyMap();model.settings(s.copy(usageConsent=true,usageSince=System.currentTimeMillis()));activity.openSystem(Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
+            consent=null
+        }) { Text("Enable") }},dismissButton={TextButton(onClick={consent=null}) { Text("Not now") }})
     }
     if(widgetPicker) WidgetPicker(state,activity.widgets,model) { widgetPicker=false }
     if(folder) FolderBuilder(apps,state,model) { folder=false }
@@ -109,5 +132,13 @@ import kotlin.math.roundToInt
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(hex,{hex=it.take(6)},Modifier.weight(1f),label={Text("$title · HEX")},prefix={Text("#")},singleLine=true,isError=!valid)
         Button(onClick={onApply(0xFF000000 or hex.toLong(16))},enabled=valid) { Text("Apply") }
+    }
+}
+
+@Composable fun GestureChoice(title: String,value: GestureAction,onSelect:(GestureAction)->Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+        Text(title,Modifier.weight(1f),style=MaterialTheme.typography.titleMedium)
+        Box { TextButton(onClick={expanded=true}) { Text(value.name.lowercase().replace('_',' ').replaceFirstChar { it.uppercase() }) }; DropdownMenu(expanded,{expanded=false}) { GestureAction.entries.forEach { action->DropdownMenuItem(text={Text(action.name.lowercase().replace('_',' ').replaceFirstChar { it.uppercase() })},onClick={onSelect(action);expanded=false}) } } }
     }
 }

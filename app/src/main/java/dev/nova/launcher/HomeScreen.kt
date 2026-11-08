@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 
 private data class DropSpot(val rect: Rect,val page: String?,val index: Int)
 
-@Composable fun HomeScreen(state: LauncherState, apps: List<AppEntry>, model: LauncherViewModel, widgets: WidgetController, onDrawer: ()->Unit, onStudio: ()->Unit, onSelect: (AppEntry,Tile)->Unit) {
+@Composable fun HomeScreen(state: LauncherState, apps: List<AppEntry>, model: LauncherViewModel, widgets: WidgetController, onDrawer: ()->Unit, onStudio: ()->Unit, onSelect: (AppEntry,Tile?)->Unit, suggestions: List<AppEntry>, onGesture:(GestureAction)->Unit) {
     val pager=rememberPagerState(pageCount={state.pages.size})
     val scope=rememberCoroutineScope()
     val byId=remember(apps) { apps.associateBy { it.component } }
@@ -73,10 +73,13 @@ private data class DropSpot(val rect: Rect,val page: String?,val index: Int)
             IconButton(onClick=onStudio) { Icon(Icons.Default.Tune,"Open customization studio") }
         }
         if(editing) Text(if(dragging!=null) "Drop on a position, page or dock" else "Hold and drag to move. Tap for more actions.",Modifier.padding(horizontal=24.dp),style=MaterialTheme.typography.bodySmall)
-        HomeClock()
+        Box(Modifier.padding(horizontal=24.dp).homeGestures(state.settings,onGesture)) { HomeClock() }
+        if(suggestions.isNotEmpty() && !editing) Row(Modifier.fillMaxWidth().padding(horizontal=20.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            suggestions.forEach { app->Box(Modifier.weight(1f)) { AppTile(app,model,state.settings.copy(iconSize=40),{model.launch(app.component)},{onSelect(app,null)}) } }
+        }
         HorizontalPager(pager,Modifier.weight(1f),userScrollEnabled=dragging==null) { index ->
             val page=state.pages[index]
-            if(page.tiles.isEmpty() && state.widgets.none { it.pageId==page.id }) Column(Modifier.fillMaxSize().padding(28.dp).onGloballyPositioned { spots["empty-${page.id}"]=DropSpot(it.boundsInRoot(),page.id,0) },verticalArrangement=Arrangement.Center) {
+            if(page.tiles.isEmpty() && state.widgets.none { it.pageId==page.id }) Column(Modifier.fillMaxSize().padding(28.dp).homeGestures(state.settings,onGesture).onGloballyPositioned { spots["empty-${page.id}"]=DropSpot(it.boundsInRoot(),page.id,0) },verticalArrangement=Arrangement.Center) {
                 Text("Make room for what matters.",style=MaterialTheme.typography.headlineMedium)
                 Spacer(Modifier.height(16.dp)); Text("Open your apps. Touch and hold one to add it here.",style=MaterialTheme.typography.bodyLarge,color=MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(24.dp)); Button(onClick=onDrawer) { Text("Choose your apps") }

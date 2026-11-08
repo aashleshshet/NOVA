@@ -8,6 +8,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.foundation.combinedClickable
@@ -37,9 +40,11 @@ import kotlinx.coroutines.launch
 @Composable fun NovaApp(model: LauncherViewModel, activity: MainActivity, homeSignal: Int) {
     val state by model.state.collectAsStateWithLifecycle()
     val apps by model.apps.collectAsStateWithLifecycle()
+    val usage by model.usage.collectAsStateWithLifecycle()
     val message by model.message.collectAsStateWithLifecycle()
     val loadFailed by model.loadFailed.collectAsStateWithLifecycle()
     var screen by rememberSaveable { mutableStateOf("home") }
+    var searchFocus by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var selected by remember { mutableStateOf<Pair<AppEntry,Tile?>?>(null) }
     val snackbar = remember { SnackbarHostState() }
@@ -56,19 +61,22 @@ import kotlinx.coroutines.launch
                 Crossfade(screen,label="launcher navigation",modifier=Modifier.weight(1f)) { destination ->
                 when(destination) {
                     "drawer" -> {
+                        val focus=remember { FocusRequester() }
+                        val keyboard=LocalSoftwareKeyboardController.current
+                        LaunchedEffect(Unit) { if(searchFocus) { focus.requestFocus();keyboard?.show() } }
                         Column(Modifier.fillMaxSize()) {
                         Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
                             IconButton(onClick={screen="home"}) { Icon(Icons.AutoMirrored.Filled.ArrowBack,"Back home") }
-                            OutlinedTextField(query,{query=it},Modifier.weight(1f).testTag("app-search"),label={Text("Search apps")},singleLine=true,leadingIcon={Icon(Icons.Default.Search,null)})
+                            OutlinedTextField(query,{query=it},Modifier.weight(1f).focusRequester(focus).testTag("app-search"),label={Text("Search apps")},singleLine=true,leadingIcon={Icon(Icons.Default.Search,null)})
                         }
                         Row(Modifier.fillMaxWidth().padding(horizontal=20.dp),verticalAlignment=Alignment.CenterVertically) {
                             Text("${apps.size} apps",Modifier.weight(1f),style=MaterialTheme.typography.labelLarge)
                             var sortMenu by remember { mutableStateOf(false) }
-                            Box { TextButton(onClick={sortMenu=true}) { Text(if(s.settings.sort==SortOrder.RECENT) "Recently installed" else "A–Z"); Icon(Icons.AutoMirrored.Filled.Sort,null) }
-                                DropdownMenu(sortMenu,{sortMenu=false}) { listOf(SortOrder.NAME,SortOrder.RECENT).forEach { order -> DropdownMenuItem(text={Text(if(order==SortOrder.NAME) "Name" else "Recently installed")},onClick={model.settings(s.settings.copy(sort=order));sortMenu=false}) } }
+                            Box { TextButton(onClick={sortMenu=true}) { Text(when(s.settings.sort) { SortOrder.NAME->"A–Z";SortOrder.RECENT->"Recently installed";SortOrder.MOST_USED->"Most used" }); Icon(Icons.AutoMirrored.Filled.Sort,null) }
+                                DropdownMenu(sortMenu,{sortMenu=false}) { (if(s.settings.suggestions) SortOrder.entries else listOf(SortOrder.NAME,SortOrder.RECENT)).forEach { order -> DropdownMenuItem(text={Text(when(order) { SortOrder.NAME->"Name";SortOrder.RECENT->"Recently installed";SortOrder.MOST_USED->"Most used in NOVA" })},onClick={model.settings(s.settings.copy(sort=order));sortMenu=false}) } }
                             }
                         }
-                        val filtered=remember(apps,query,s.settings.sort) { LauncherOps.apps(apps,query,s.settings.sort) }
+                        val filtered=remember(apps,query,s.settings.sort,s.history) { LauncherOps.apps(apps,query,s.settings.sort,s.history) }
                         if(filtered.isEmpty()) { Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) { Text(if(query.isBlank()) "No launchable apps found" else "No apps match “$query”") } }
                         LazyVerticalGrid(GridCells.Fixed(s.settings.columns),Modifier.fillMaxSize().testTag("app-drawer"),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(s.settings.spacing.dp)) {
                             items(filtered,key={it.component}) { app -> AppTile(app,model,s.settings,{model.launch(app.component)},{selected=app to null}) }
@@ -76,7 +84,13 @@ import kotlinx.coroutines.launch
                         }
                     }
                     "settings" -> StudioScreen(s,apps,model,activity) { screen="home" }
-                    else -> HomeScreen(s,apps,model,activity.widgets,onDrawer={screen="drawer"},onStudio={screen="settings"},onSelect={app,tile->selected=app to tile})
+                    else -> HomeScreen(s,apps,model,activity.widgets,onDrawer={searchFocus=false;screen="drawer"},onStudio={screen="settings"},onSelect={app,tile->selected=app to tile},suggestions=Suggestions.ranked(apps,s,System.currentTimeMillis(),usage).take(4),onGesture={action->when(action) {
+                        GestureAction.DRAWER -> {screen="drawer";query=""}
+                        GestureAction.SEARCH -> {searchFocus=true;screen="drawer";query=""}
+                        GestureAction.STUDIO -> screen="settings"
+                        GestureAction.SYSTEM_SETTINGS -> activity.openSystem(android.content.Intent(android.provider.Settings.ACTION_SETTINGS))
+                        GestureAction.NONE -> Unit
+                    }})
                 }
                 }
             }
