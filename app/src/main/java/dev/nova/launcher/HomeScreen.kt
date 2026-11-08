@@ -32,11 +32,12 @@ import kotlinx.coroutines.launch
 
 private data class DropSpot(val rect: Rect,val page: String?,val index: Int)
 
-@Composable fun HomeScreen(state: LauncherState, apps: List<AppEntry>, model: LauncherViewModel, onDrawer: ()->Unit, onStudio: ()->Unit, onSelect: (AppEntry,Tile)->Unit) {
+@Composable fun HomeScreen(state: LauncherState, apps: List<AppEntry>, model: LauncherViewModel, widgets: WidgetController, onDrawer: ()->Unit, onStudio: ()->Unit, onSelect: (AppEntry,Tile)->Unit) {
     val pager=rememberPagerState(pageCount={state.pages.size})
     val scope=rememberCoroutineScope()
     val byId=remember(apps) { apps.associateBy { it.component } }
     var editing by remember { mutableStateOf(false) }
+    var widgetId by remember { mutableStateOf<Int?>(null) }
     var folderId by remember { mutableStateOf<String?>(null) }
     val spots=remember { mutableMapOf<String,DropSpot>() }
     var dragging by remember { mutableStateOf<String?>(null) }
@@ -75,11 +76,12 @@ private data class DropSpot(val rect: Rect,val page: String?,val index: Int)
         HomeClock()
         HorizontalPager(pager,Modifier.weight(1f),userScrollEnabled=dragging==null) { index ->
             val page=state.pages[index]
-            if(page.tiles.isEmpty()) Column(Modifier.fillMaxSize().padding(28.dp).onGloballyPositioned { spots["empty-${page.id}"]=DropSpot(it.boundsInRoot(),page.id,0) },verticalArrangement=Arrangement.Center) {
+            if(page.tiles.isEmpty() && state.widgets.none { it.pageId==page.id }) Column(Modifier.fillMaxSize().padding(28.dp).onGloballyPositioned { spots["empty-${page.id}"]=DropSpot(it.boundsInRoot(),page.id,0) },verticalArrangement=Arrangement.Center) {
                 Text("Make room for what matters.",style=MaterialTheme.typography.headlineMedium)
                 Spacer(Modifier.height(16.dp)); Text("Open your apps. Touch and hold one to add it here.",style=MaterialTheme.typography.bodyLarge,color=MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(24.dp)); Button(onClick=onDrawer) { Text("Choose your apps") }
             } else LazyVerticalGrid(GridCells.Fixed(state.settings.columns),Modifier.fillMaxSize(),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(state.settings.spacing.dp),horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                items(state.widgets.filter { it.pageId==page.id },key={"widget-${it.id}"},span={GridItemSpan(it.span.coerceAtMost(state.settings.columns))}) { widget -> HostedWidget(widget,widgets,editing) { widgetId=widget.id } }
                 itemsIndexed(page.tiles,key={_,t->t.id}) { i,t -> tileView(t,page.id,i) }
             }
         }
@@ -97,6 +99,7 @@ private data class DropSpot(val rect: Rect,val page: String?,val index: Int)
         }
         TextButton(onClick=onDrawer,modifier=Modifier.align(Alignment.CenterHorizontally).testTag("open-drawer")) { Icon(Icons.Default.Apps,null); Spacer(Modifier.width(8.dp)); Text("All apps") }
     }
+    state.widgets.find { it.id==widgetId }?.let { WidgetEditor(it,state,widgets,model) { widgetId=null } }
     val folder=(state.pages.flatMap { it.tiles }+state.dock).find { it.id==folderId && it.isFolder }
     if(folder!=null) FolderDialog(folder,state,apps,model) { folderId=null }
 }

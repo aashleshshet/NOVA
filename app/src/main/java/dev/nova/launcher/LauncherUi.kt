@@ -76,7 +76,7 @@ import kotlinx.coroutines.launch
                         }
                     }
                     "settings" -> StudioScreen(s,apps,model,activity) { screen="home" }
-                    else -> HomeScreen(s,apps,model,onDrawer={screen="drawer"},onStudio={screen="settings"},onSelect={app,tile->selected=app to tile})
+                    else -> HomeScreen(s,apps,model,activity.widgets,onDrawer={screen="drawer"},onStudio={screen="settings"},onSelect={app,tile->selected=app to tile})
                 }
                 }
             }
@@ -105,7 +105,7 @@ import kotlinx.coroutines.launch
 }
 
 @Composable fun AppTile(app: AppEntry, model: LauncherViewModel, settings: Settings, onClick: ()->Unit, onLongClick: ()->Unit) {
-    val icon by produceState<android.graphics.Bitmap?>(null,app.component) { value=model.catalog.icon(app.component) }
+    val icon by produceState<android.graphics.Bitmap?>(null,app.component,settings.iconPack) { value=model.catalog.icon(app.component,settings.iconPack) }
     Column(Modifier.fillMaxWidth().heightIn(min=72.dp).clip(RoundedCornerShape(16.dp)).combinedClickable(onClick=onClick,onLongClick=onLongClick).padding(4.dp),horizontalAlignment=Alignment.CenterHorizontally) {
         if(icon!=null) Image(icon!!.asImageBitmap(),app.label,Modifier.size(settings.iconSize.dp).then(when(settings.iconShape) { IconShape.CIRCLE -> Modifier.clip(CircleShape); IconShape.ROUNDED -> Modifier.clip(RoundedCornerShape(16.dp)); IconShape.ORIGINAL -> Modifier }))
         else Icon(Icons.Default.Apps,app.label,Modifier.size(settings.iconSize.dp))

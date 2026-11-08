@@ -21,6 +21,9 @@ import kotlin.math.roundToInt
 
 @Composable fun StudioScreen(state: LauncherState, apps: List<AppEntry>, model: LauncherViewModel, activity: MainActivity, onBack: ()->Unit) {
     val s=state.settings
+    var widgetPicker by remember { mutableStateOf(false) }
+    var packs by remember { mutableStateOf<List<IconPack>>(emptyList()) }
+    LaunchedEffect(apps) { packs=model.catalog.iconPacks.discover() }
     var folder by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically) {
@@ -53,6 +56,17 @@ import kotlin.math.roundToInt
             ToggleRow("App labels","Show names below home and drawer icons.",s.labels) { model.settings(s.copy(labels=it)) }
             ChoiceRow("Icon shape",IconShape.entries,s.iconShape) { model.settings(s.copy(iconShape=it)) }
             ChoiceRow("Typeface",FontChoice.entries,s.font) { model.settings(s.copy(font=it)) }
+            StudioHeading("Widgets & icons")
+            OutlinedButton(onClick={widgetPicker=true},modifier=Modifier.testTag("add-widget")) { Text("Add a widget") }
+            Text("Use Edit on home to resize, move or remove widgets.",style=MaterialTheme.typography.bodySmall)
+            var packMenu by remember { mutableStateOf(false) }
+            Box { OutlinedButton(onClick={packMenu=true}) { Text(packs.find { it.packageName==s.iconPack }?.label ?: "System icons") }
+                DropdownMenu(packMenu,{packMenu=false}) {
+                    DropdownMenuItem(text={Text("System icons")},onClick={model.settings(s.copy(iconPack=""));packMenu=false})
+                    packs.forEach { pack->DropdownMenuItem(text={Text(pack.label)},onClick={model.settings(s.copy(iconPack=pack.packageName));packMenu=false}) }
+                }
+            }
+            if(packs.isEmpty()) Text("Install an ADW-compatible icon pack to customize icons. Unmapped apps keep their original icon.",style=MaterialTheme.typography.bodySmall)
             StudioHeading("Pages & folders")
             Text("Use Edit on home to drag shortcuts. Touch and hold an app for move and remove actions.")
             OutlinedButton(onClick={folder=true},modifier=Modifier.testTag("create-folder")) { Text("Create a folder") }
@@ -71,6 +85,7 @@ import kotlin.math.roundToInt
             Spacer(Modifier.height(24.dp))
         }
     }
+    if(widgetPicker) WidgetPicker(state,activity.widgets,model) { widgetPicker=false }
     if(folder) FolderBuilder(apps,state,model) { folder=false }
 }
 

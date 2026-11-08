@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class AppCatalog(private val context: Context) {
+    val iconPacks = IconPacks(context)
     private val pm = context.packageManager
     private val cache = LruCache<String, Bitmap>(120)
     suspend fun discover(): List<AppEntry> = withContext(Dispatchers.IO) {
@@ -22,12 +23,13 @@ class AppCatalog(private val context: Context) {
                 AppEntry(ComponentName(pkg, info.activityInfo.name).flattenToString(),pkg,info.loadLabel(pm).toString(),pm.getPackageInfo(pkg,0).firstInstallTime)
             }.getOrNull() }.distinctBy { it.component }
     }
-    suspend fun icon(component: String): Bitmap? = withContext(Dispatchers.IO) {
-        cache.get(component) ?: runCatching {
-            pm.getActivityIcon(ComponentName.unflattenFromString(component) ?: return@withContext null).toBitmap(144,144).also { cache.put(component,it) }
+    suspend fun icon(component: String, pack: String = ""): Bitmap? = withContext(Dispatchers.IO) {
+        cache.get("$pack|$component") ?: runCatching {
+            iconPacks.icon(pack,component)?.also { cache.put("$pack|$component",it) } ?:
+            pm.getActivityIcon(ComponentName.unflattenFromString(component) ?: return@withContext null).toBitmap(144,144).also { cache.put("$pack|$component",it) }
         }.getOrNull()
     }
-    fun clearIcons() { cache.evictAll() }
+    fun clearIcons() { cache.evictAll(); iconPacks.clear() }
     fun launch(component: String): Result<Unit> = runCatching {
         val name = requireNotNull(ComponentName.unflattenFromString(component))
         val info = pm.getActivityInfo(name,0)

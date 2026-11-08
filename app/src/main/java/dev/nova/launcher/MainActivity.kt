@@ -20,6 +20,8 @@ import java.io.File
 
 class MainActivity : ComponentActivity() {
     val model: LauncherViewModel by viewModels()
+    lateinit var widgets: WidgetController
+        private set
     private val roleResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { model.refresh() }
     private val installPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (packageManager.canRequestPackageInstalls()) pickApk.launch(arrayOf("application/vnd.android.package-archive"))
@@ -74,7 +76,16 @@ class MainActivity : ComponentActivity() {
     var homeSignal = androidx.compose.runtime.mutableIntStateOf(0)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState); enableEdgeToEdge()
+        widgets=WidgetController(this,model)
+        lifecycleScope.launch { model.state.collect { it?.let(widgets::reconcile) } }
         setContent { NovaApp(model,this,homeSignal.intValue) }
+    }
+    override fun onStart() { super.onStart(); widgets.start() }
+    override fun onStop() { widgets.stop(); super.onStop() }
+    @Deprecated("Platform widget host configuration callback")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode,resultCode,data)
+        if(requestCode==WidgetController.CONFIGURE_REQUEST) widgets.configurationResult(resultCode)
     }
     override fun onResume() { super.onResume(); model.refresh() }
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); homeSignal.intValue++ }
