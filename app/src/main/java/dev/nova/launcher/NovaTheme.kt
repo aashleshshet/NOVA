@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import dev.nova.core.FontChoice
@@ -28,6 +29,7 @@ import dev.nova.core.ThemeMode
 fun backgroundColor(s: Settings): Color = when(s.theme) { ThemeMode.AMOLED -> Color.Black; ThemeMode.DARK -> Color(0xFF101418); ThemeMode.LIGHT -> Color(0xFFF5F6F1); ThemeMode.CUSTOM -> Color(s.background) }
 fun foregroundColor(background: Color): Color = if(background.luminance() > 0.179f) Color(0xFF080A0C) else Color(0xFFF6F8F1)
 
+@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
 @Composable fun NovaTheme(settings: Settings, content: @Composable ()->Unit) {
     val bg=backgroundColor(settings)
     val fg=foregroundColor(bg)
@@ -36,7 +38,7 @@ fun foregroundColor(background: Color): Color = if(background.luminance() > 0.17
     // A custom accent is used for filled actions; text links use a contrast-safe foreground.
     val scheme=if(light) lightColorScheme(primary=if(settings.theme==ThemeMode.LIGHT) Color(0xFF365122) else fg,onPrimary=bg,primaryContainer=accent,onPrimaryContainer=foregroundColor(accent),background=bg,onBackground=fg,surface=bg,onSurface=fg,surfaceVariant=Color(0xFFE5E8DF),onSurfaceVariant=Color(0xFF41463C),outline=Color(0xFF747A6D))
         else darkColorScheme(primary=if(settings.theme==ThemeMode.CUSTOM) fg else accent,onPrimary=Color.Black,primaryContainer=accent,onPrimaryContainer=foregroundColor(accent),background=bg,onBackground=fg,surface=bg,onSurface=fg,surfaceVariant=Color(0xFF20262B),onSurfaceVariant=Color(0xFFC4CBC2),outline=Color(0xFF899186))
-    val family=when(settings.font) { FontChoice.OUTFIT -> FontFamily(Font(R.font.outfit)); FontChoice.SYSTEM -> FontFamily.SansSerif; FontChoice.SERIF -> FontFamily.Serif }
+    val family=when(settings.font) { FontChoice.OUTFIT -> FontFamily(Font(R.font.outfit,variationSettings=FontVariation.Settings(FontVariation.weight(400)))); FontChoice.SYSTEM -> FontFamily.SansSerif; FontChoice.SERIF -> FontFamily.Serif }
     val base=Typography()
     val typography=remember(family) { Typography(
         displayLarge=base.displayLarge.copy(fontFamily=family,fontWeight=FontWeight.Light),displayMedium=base.displayMedium.copy(fontFamily=family,fontWeight=FontWeight.Light),displaySmall=base.displaySmall.copy(fontFamily=family),

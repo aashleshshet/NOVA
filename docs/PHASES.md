@@ -14,3 +14,8 @@ Checks: 8 JVM tests PASS; assembleDebug PASS; lintDebug PASS; 2 emulator instrum
 Added NOVA Material color/type system, AMOLED/light/dark/custom schemes, Outfit and font/shape tokens, live localized clock/date, glass dock with PowerManager solid fallback, theme selection, system-bar contrast, and system-scaled Crossfade navigation. Added explicit exclusions for cloud backup and device transfer. Important files: NovaTheme.kt, HomeClock.kt, LauncherUi.kt, DESIGN.md, data_extraction_rules.xml.
 
 Checks: 8 JVM tests remain PASS; assembleDebug and lintDebug PASS. Installed updated UI and captured AMOLED emulator screen. No physical performance claim; API 26/light/large-font coverage remains for Phase 7. Glass uses a lightweight translucent sheen, not expensive live backdrop blur.
+
+## Phase 4 — Customization Studio
+Implemented live previews using real icons, custom HEX color validation, grid/dock/icon/spacing controls, icon masks, typefaces, system wallpaper picker, persistent folders with rename/member editing, page deletion guards, drag reordering and page/dock drop targets, and accessible move actions. Reducing dock size moves overflow to page one. JSON backups use a size-limited document picker and strict version/schema validation; restore confirms replacement and drops consent/history/widget IDs. Corrupt persistence offers recovery without silently resetting user data. Important files: StudioScreen.kt, HomeScreen.kt, Folders.kt, LayoutEditor.kt, MainActivity.kt.
+
+Checks: 12 JVM tests PASS including cross-container moves, folders, lossless dock reduction and deletion guards; assembleDebug/lintDebug PASS. Full gesture and document-provider UI checks remain for validation phase; physical-device tests pending.

@@ -38,6 +38,7 @@ import kotlinx.coroutines.launch
     val state by model.state.collectAsStateWithLifecycle()
     val apps by model.apps.collectAsStateWithLifecycle()
     val message by model.message.collectAsStateWithLifecycle()
+    val loadFailed by model.loadFailed.collectAsStateWithLifecycle()
     var screen by rememberSaveable { mutableStateOf("home") }
     var query by rememberSaveable { mutableStateOf("") }
     var selected by remember { mutableStateOf<Pair<AppEntry,Tile?>?>(null) }
@@ -48,7 +49,9 @@ import kotlinx.coroutines.launch
     NovaTheme(state?.settings ?: Settings()) {
         Scaffold(containerColor=if(state?.settings?.systemWallpaper==true && screen=="home") MaterialTheme.colorScheme.background.copy(alpha=.82f) else MaterialTheme.colorScheme.background,snackbarHost={ SnackbarHost(snackbar) }) { padding ->
             val s = state
-            if(s == null) { Box(Modifier.fillMaxSize().padding(padding),contentAlignment=Alignment.Center) { CircularProgressIndicator() }; return@Scaffold }
+            if(s == null) { Box(Modifier.fillMaxSize().padding(padding),contentAlignment=Alignment.Center) {
+                if(loadFailed) Column(Modifier.padding(24.dp)) { Text("Your saved layout could not be read."); TextButton(onClick=activity::importBackup) { Text("Restore backup") }; TextButton(onClick=activity::chooseHome) { Text("Choose another launcher") } } else CircularProgressIndicator()
+            }; return@Scaffold }
             Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
                 Crossfade(screen,label="launcher navigation",modifier=Modifier.weight(1f)) { destination ->
                 when(destination) {
@@ -72,72 +75,32 @@ import kotlinx.coroutines.launch
                         }
                         }
                     }
-                    "settings" -> {
-                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                        Row(verticalAlignment=Alignment.CenterVertically) { IconButton(onClick={screen="home"}) { Icon(Icons.AutoMirrored.Filled.ArrowBack,"Back home") }; Text("Studio",style=MaterialTheme.typography.headlineMedium) }
-                        Button(onClick=activity::chooseHome,modifier=Modifier.padding(16.dp)) { Text("Set as default launcher") }
-                        OutlinedButton(onClick=activity::installApk,modifier=Modifier.padding(horizontal=16.dp)) { Text("Install an APK") }
-                        Text("Appearance",Modifier.padding(20.dp),style=MaterialTheme.typography.titleLarge)
-                        ThemeMode.entries.forEach { mode -> Row(Modifier.fillMaxWidth().padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically) { RadioButton(s.settings.theme==mode,{model.settings(s.settings.copy(theme=mode))}); Text(mode.name.lowercase().replaceFirstChar { it.uppercase() }) } }
-                        Row(Modifier.fillMaxWidth().padding(20.dp),verticalAlignment=Alignment.CenterVertically) { Text("Glass surfaces",Modifier.weight(1f)); Switch(s.settings.glass,{model.settings(s.settings.copy(glass=it))}) }
-                        }
-                    }
+                    "settings" -> StudioScreen(s,apps,model,activity) { screen="home" }
                     else -> HomeScreen(s,apps,model,onDrawer={screen="drawer"},onStudio={screen="settings"},onSelect={app,tile->selected=app to tile})
                 }
                 }
             }
         }
+        activity.pendingRestore.value?.let { restored ->
+            AlertDialog(onDismissRequest={activity.pendingRestore.value=null},title={Text("Replace your layout?")},text={Text("Restore ${restored.pages.size} pages and ${restored.dock.size} dock items. Current widget bindings will be removed. Usage consent will be off.")},confirmButton={TextButton(onClick=activity::confirmRestore) { Text("Restore") }},dismissButton={TextButton(onClick={activity.pendingRestore.value=null}) { Text("Cancel") }})
+        }
         selected?.let { (app,tile) ->
             ModalBottomSheet(onDismissRequest={selected=null}) {
-                Column(Modifier.padding(24.dp).fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(24.dp).fillMaxWidth().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                     Text(app.label,style=MaterialTheme.typography.headlineSmall)
                     TextButton(onClick={model.launch(app.component);selected=null}) { Text("Open app") }
                     state?.pages?.forEachIndexed { i,page -> TextButton(onClick={model.pin(app.component,page.id);selected=null}) { Text("Add to page ${i+1}") } }
                     TextButton(onClick={model.pin(app.component,null,true);selected=null}) { Text("Add to dock") }
-                    if(tile!=null) TextButton(onClick={model.remove(tile.id);selected=null}) { Text("Remove shortcut") }
+                    if(tile!=null) {
+                        state?.pages?.forEachIndexed { i,page -> TextButton(onClick={model.mutate { LayoutEditor.move(it,tile.id,page.id) };selected=null}) { Text("Move to page ${i+1}") } }
+                        TextButton(onClick={model.mutate { LayoutEditor.move(it,tile.id,null) };selected=null}) { Text("Move to dock") }
+                        TextButton(onClick={model.remove(tile.id);selected=null}) { Text("Remove shortcut") }
+                    }
                     TextButton(onClick={activity.appInfo(app.packageName);selected=null}) { Text("App info") }
                     TextButton(onClick={activity.uninstall(app.packageName);selected=null}) { Text("Uninstall app") }
                 }
             }
         }
-    }
-}
-
-@Composable fun HomeScreen(state: LauncherState, apps: List<AppEntry>, model: LauncherViewModel, onDrawer: ()->Unit, onStudio: ()->Unit, onSelect: (AppEntry,Tile)->Unit) {
-    val pager = rememberPagerState(pageCount={state.pages.size})
-    val scope=rememberCoroutineScope()
-    val byId=remember(apps) { apps.associateBy { it.component } }
-    Column(Modifier.fillMaxSize().testTag("home-screen")) {
-        Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
-            Text("NOVA",Modifier.weight(1f),style=MaterialTheme.typography.titleLarge)
-            IconButton(onClick=onStudio) { Icon(Icons.Default.Tune,"Open customization studio") }
-        }
-        HomeClock()
-        HorizontalPager(pager,Modifier.weight(1f)) { index ->
-            val page=state.pages[index]
-            if(page.tiles.isEmpty()) Column(Modifier.fillMaxSize().padding(32.dp),verticalArrangement=Arrangement.Center) {
-                Text("Make room for what matters.",style=MaterialTheme.typography.headlineMedium)
-                Spacer(Modifier.height(16.dp)); Text("Open your apps. Touch and hold one to add it here.",style=MaterialTheme.typography.bodyLarge)
-                Spacer(Modifier.height(24.dp)); Button(onClick=onDrawer) { Text("Choose your apps") }
-            } else LazyVerticalGrid(GridCells.Fixed(state.settings.columns),Modifier.fillMaxSize(),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(state.settings.spacing.dp)) {
-                items(page.tiles,key={it.id}) { tile -> val app=byId[tile.component] ?: AppEntry(tile.component,tile.component.substringBefore('/'),"Unavailable")
-                    AppTile(app,model,state.settings,{model.launch(tile.component)},{onSelect(app,tile)})
-                }
-            }
-        }
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically) {
-            state.pages.forEachIndexed { i,_ -> TextButton(onClick={scope.launch { pager.animateScrollToPage(i) }}) { Text(if(pager.currentPage==i) "Page ${i+1}" else "${i+1}") } }
-            if(state.pages.size<12) IconButton(onClick={model.mutate(LauncherOps::addPage)}) { Icon(Icons.Default.Add,"Add home page") }
-        }
-        GlassPanel(state.settings,Modifier.padding(horizontal=16.dp).fillMaxWidth()) {
-            Row(Modifier.padding(12.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
-                if(state.dock.isEmpty()) TextButton(onClick=onDrawer) { Text("Add favorites to your dock") }
-                state.dock.forEach { tile -> val app=byId[tile.component] ?: AppEntry(tile.component,tile.component.substringBefore('/'),"Unavailable")
-                    Box(Modifier.weight(1f)) { AppTile(app,model,state.settings.copy(labels=false),{model.launch(tile.component)},{onSelect(app,tile)}) }
-                }
-            }
-        }
-        TextButton(onClick=onDrawer,modifier=Modifier.align(Alignment.CenterHorizontally).testTag("open-drawer")) { Icon(Icons.Default.Apps,null); Spacer(Modifier.width(8.dp)); Text("All apps") }
     }
 }
 

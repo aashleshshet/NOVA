@@ -42,6 +42,35 @@ class MainActivity : ComponentActivity() {
             }.onFailure { model.message.value = "Could not open APK: ${it.message}" }
         }
     }
+    var pendingRestore = androidx.compose.runtime.mutableStateOf<dev.nova.core.LauncherState?>(null)
+    private val saveBackup = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        val snapshot=model.state.value
+        if(uri!=null && snapshot!=null) lifecycleScope.launch {
+            runCatching { withContext(Dispatchers.IO) { contentResolver.openOutputStream(uri,"wt").use { out -> requireNotNull(out).write(dev.nova.core.StateCodec.export(snapshot).toByteArray(Charsets.UTF_8)) } } }
+                .onSuccess { model.message.value="Backup saved. Widget bindings and usage history were excluded." }
+                .onFailure { model.message.value="Could not save backup: ${it.message}" }
+        }
+    }
+    private val openBackup = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if(uri!=null) lifecycleScope.launch {
+            runCatching { withContext(Dispatchers.IO) {
+                contentResolver.openInputStream(uri).use { stream ->
+                    requireNotNull(stream)
+                    val bytes=java.io.ByteArrayOutputStream(); val buffer=ByteArray(8192)
+                    while(true) { val n=stream.read(buffer); if(n<0) break; require(bytes.size()+n<=dev.nova.core.StateCodec.MAX_BYTES) { "Backup exceeds 1 MB" }; bytes.write(buffer,0,n) }
+                    dev.nova.core.StateCodec.restore(bytes.toString("UTF-8"))
+                }
+            } }.onSuccess { pendingRestore.value=it }.onFailure { model.message.value="Backup was not restored: ${it.message}" }
+        }
+    }
+    fun exportBackup() = saveBackup.launch("nova-backup-v1.json")
+    fun importBackup() = openBackup.launch(arrayOf("application/json","text/plain","application/octet-stream"))
+    fun confirmRestore() {
+        val restored=pendingRestore.value ?: return
+        lifecycleScope.launch {
+            runCatching { model.store.replace(restored) }.onSuccess { pendingRestore.value=null; model.reloadState(); model.message.value="Layout restored. Re-add widgets on this device." }.onFailure { model.message.value="Restore failed; your current layout has been kept." }
+        }
+    }
     var homeSignal = androidx.compose.runtime.mutableIntStateOf(0)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState); enableEdgeToEdge()
