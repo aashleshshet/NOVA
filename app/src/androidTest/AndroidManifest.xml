@@ -4,5 +4,8 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/test_widget"/>
         </receiver>
+        <activity android:name="dev.nova.launcher.FixtureThemeActivity" android:exported="true" android:label="NOVA instrumentation icon pack">
+            <intent-filter><action android:name="org.adw.launcher.THEMES"/><category android:name="android.intent.category.DEFAULT"/></intent-filter>
+        </activity>
     </application>
 </manifest>

@@ -7,6 +7,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -78,16 +80,18 @@ import kotlinx.coroutines.launch
                         }
                         val filtered=remember(apps,query,s.settings.sort,s.history) { LauncherOps.apps(apps,query,s.settings.sort,s.history) }
                         if(filtered.isEmpty()) { Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) { Text(if(query.isBlank()) "No launchable apps found" else "No apps match “$query”") } }
-                        LazyVerticalGrid(GridCells.Fixed(s.settings.columns),Modifier.fillMaxSize().testTag("app-drawer"),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(s.settings.spacing.dp)) {
+                        LazyVerticalGrid(GridCells.Fixed(minOf(s.settings.columns,((androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp-32)/56).coerceAtLeast(3))),Modifier.fillMaxSize().testTag("app-drawer"),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(s.settings.spacing.dp)) {
                             items(filtered,key={it.component}) { app -> AppTile(app,model,s.settings,{model.launch(app.component)},{selected=app to null}) }
                         }
                         }
                     }
+                    "controls" -> ControlCentre(activity) { screen="home" }
                     "settings" -> StudioScreen(s,apps,model,activity) { screen="home" }
-                    else -> HomeScreen(s,apps,model,activity.widgets,onDrawer={searchFocus=false;screen="drawer"},onStudio={screen="settings"},onSelect={app,tile->selected=app to tile},suggestions=Suggestions.ranked(apps,s,System.currentTimeMillis(),usage).take(4),onGesture={action->when(action) {
+                    else -> HomeScreen(s,apps,model,activity.widgets,onDrawer={searchFocus=false;screen="drawer"},onStudio={screen="settings"},onControls={screen="controls"},onSelect={app,tile->selected=app to tile},suggestions=Suggestions.ranked(apps,s,System.currentTimeMillis(),usage).take(4),onGesture={action->when(action) {
                         GestureAction.DRAWER -> {screen="drawer";query=""}
                         GestureAction.SEARCH -> {searchFocus=true;screen="drawer";query=""}
                         GestureAction.STUDIO -> screen="settings"
+                        GestureAction.CONTROL_CENTRE -> screen="controls"
                         GestureAction.SYSTEM_SETTINGS -> activity.openSystem(android.content.Intent(android.provider.Settings.ACTION_SETTINGS))
                         GestureAction.NONE -> Unit
                     }})
@@ -118,10 +122,11 @@ import kotlinx.coroutines.launch
     }
 }
 
-@Composable fun AppTile(app: AppEntry, model: LauncherViewModel, settings: Settings, onClick: ()->Unit, onLongClick: ()->Unit) {
-    val icon by produceState<android.graphics.Bitmap?>(null,app.component,settings.iconPack) { value=model.catalog.icon(app.component,settings.iconPack) }
+@Composable fun AppTile(app: AppEntry, model: LauncherViewModel, settings: Settings, onClick: ()->Unit, onLongClick: (()->Unit)?) {
+    val revision by model.iconRevision.collectAsStateWithLifecycle()
+    val icon by produceState<android.graphics.Bitmap?>(null,app.component,settings.iconPack,revision) { value=model.catalog.icon(app.component,settings.iconPack) }
     Column(Modifier.fillMaxWidth().heightIn(min=72.dp).clip(RoundedCornerShape(16.dp)).combinedClickable(onClick=onClick,onLongClick=onLongClick).padding(4.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-        if(icon!=null) Image(icon!!.asImageBitmap(),app.label,Modifier.size(settings.iconSize.dp).then(when(settings.iconShape) { IconShape.CIRCLE -> Modifier.clip(CircleShape); IconShape.ROUNDED -> Modifier.clip(RoundedCornerShape(16.dp)); IconShape.ORIGINAL -> Modifier }))
+        if(icon!=null) Image(icon!!.asImageBitmap(),app.label,colorFilter=if(settings.monochromeIcons) ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) }) else null,modifier=Modifier.size(settings.iconSize.dp).then(when(settings.iconShape) { IconShape.CIRCLE -> Modifier.clip(CircleShape); IconShape.ROUNDED -> Modifier.clip(RoundedCornerShape(16.dp)); IconShape.ORIGINAL -> Modifier }))
         else Icon(Icons.Default.Apps,app.label,Modifier.size(settings.iconSize.dp))
         if(settings.labels) { Spacer(Modifier.height(8.dp)); Text(app.label,style=MaterialTheme.typography.labelMedium,maxLines=2,overflow=TextOverflow.Ellipsis,textAlign=TextAlign.Center) }
     }

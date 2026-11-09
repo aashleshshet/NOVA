@@ -17,6 +17,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val store = (application as NovaApplication).store
     val catalog = AppCatalog(application)
     val state = MutableStateFlow<LauncherState?>(null)
+    val iconRevision = MutableStateFlow(0)
     val apps = MutableStateFlow<List<AppEntry>>(emptyList())
     val message = MutableStateFlow<String?>(null)
     val usageRanking = UsageRanking(application)
@@ -28,14 +29,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             if (intent.action == Intent.ACTION_PACKAGE_REMOVED && !intent.getBooleanExtra(Intent.EXTRA_REPLACING,false)) {
                 intent.data?.schemeSpecificPart?.let { pkg -> mutate { LauncherOps.removePackage(it,pkg) } }
             }
-            catalog.clearIcons(); refresh()
+            catalog.clearIcons(); iconRevision.value++; refresh()
         }
     }
     val loadFailed = MutableStateFlow(false)
     private var stateJob: Job? = null
     fun reloadState() {
         stateJob?.cancel(); loadFailed.value=false
-        stateJob=viewModelScope.launch { store.state.catch { loadFailed.value=true; message.value="Could not read your saved layout. Restore a backup; existing data has been kept." }.collect { state.value=it
+        stateJob=viewModelScope.launch { store.state.catch { loadFailed.value=true; message.value="Could not read your saved layout. Restore a backup; existing data has been kept." }.collect { val firstLoad=state.value==null; state.value=it; if(firstLoad) refresh()
             val cutoff=System.currentTimeMillis()-Suggestions.RETENTION_MS
             if(it.history.values.any { record->record.lastLaunch<cutoff }) store.update { current->current.copy(history=current.history.filterValues { record->record.lastLaunch>=cutoff }) }
         } }
@@ -50,7 +51,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun refresh() {
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
-            try { apps.value = catalog.discover() } catch (e: Exception) { if(e is kotlinx.coroutines.CancellationException) throw e; message.value = "Cannot read apps. Try reopening NOVA." }
+            try {
+                apps.value = catalog.discover()
+                state.value?.let { current ->
+                    val components=current.pages.flatMap { it.tiles }.plus(current.dock).flatMap { if(it.isFolder) it.children else listOf(it.component) }
+                    val known=(components+current.widgets.map { it.provider }+current.history.keys).map { it.substringBefore('/') }.toSet()
+                    val installed=apps.value.map { it.packageName }.toSet()
+                    val missing=catalog.missingPackages(known-installed)
+                    if(missing.isNotEmpty()) store.update { previous->missing.fold(previous) { state,pkg->LauncherOps.removePackage(state,pkg) } }
+                }
+            } catch (e: Exception) { if(e is kotlinx.coroutines.CancellationException) throw e; message.value = "Cannot read apps. Try reopening NOVA." }
             finally { loadingApps.value = false }
             state.value?.settings?.let { settings -> usage.value=runCatching { usageRanking.read(settings) }.getOrDefault(emptyMap()) }
         }

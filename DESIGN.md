@@ -18,3 +18,6 @@ Studio: live miniature preview followed by grouped native controls, reversible c
 
 ## Accessibility
 System bars and IME insets; TalkBack semantics; labeled icons; large-font layouts scroll rather than clip. Drag editing has button alternatives. Actual app names, device time and widget contents only. No illustrative fake tiles.
+
+## Nothing OS–inspired revision (user direction, 2026-11-09)
+Monochrome is now the default: black/#121212 ground, #232323 control surfaces, warm off-white text, and #FF4A44 accents reserved for active controls. A custom vector dot matrix renders the live clock and NOVA wordmark; no external brand assets or affiliation claims. Round grayscale app icons are optional and always use the real installed artwork. The control centre has large native action tiles, real battery/network status, media-volume adjustment, permission-gated brightness/flashlight, and Android-owned connectivity/focus panels. Swipe down opens it by default; Studio can remap the gesture. Existing layout and theme choices remain persistent.

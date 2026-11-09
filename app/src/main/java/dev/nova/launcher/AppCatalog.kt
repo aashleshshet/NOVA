@@ -23,6 +23,16 @@ class AppCatalog(private val context: Context) {
                 AppEntry(ComponentName(pkg, info.activityInfo.name).flattenToString(),pkg,info.loadLabel(pm).toString(),pm.getPackageInfo(pkg,0).firstInstallTime)
             }.getOrNull() }.distinctBy { it.component }
     }
+    suspend fun missingPackages(candidates: Set<String>): Set<String> = withContext(Dispatchers.IO) {
+        candidates.filter { pkg ->
+            try {
+                // Retain disabled, archived, or temporarily unavailable packages with retained data.
+                @Suppress("DEPRECATION")
+                pm.getPackageInfo(pkg,PackageManager.MATCH_UNINSTALLED_PACKAGES or PackageManager.MATCH_DISABLED_COMPONENTS)
+                false
+            } catch(_: PackageManager.NameNotFoundException) { true }
+        }.toSet()
+    }
     suspend fun icon(component: String, pack: String = ""): Bitmap? = withContext(Dispatchers.IO) {
         cache.get("$pack|$component") ?: runCatching {
             iconPacks.icon(pack,component)?.also { cache.put("$pack|$component",it) } ?:

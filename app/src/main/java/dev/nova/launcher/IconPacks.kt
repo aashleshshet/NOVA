@@ -14,25 +14,28 @@ import org.xmlpull.v1.XmlPullParser
 data class IconPack(val packageName: String,val label: String)
 class IconPacks(private val context: Context) {
     private var loadedPackage=""
+    private var packResources: android.content.res.Resources? = null
     private var mapping: Map<String,String> = emptyMap()
     private val pm=context.packageManager
     suspend fun discover(): List<IconPack> = withContext(Dispatchers.IO) {
         listOf("org.adw.launcher.THEMES","com.novalauncher.THEME").flatMap { action->pm.queryIntentActivities(Intent(action),0) }
             .distinctBy { it.activityInfo.packageName }.map { IconPack(it.activityInfo.packageName,it.loadLabel(pm).toString()) }.sortedBy { it.label.lowercase() }
     }
-    @Synchronized fun clear() { loadedPackage="";mapping=emptyMap() }
+    @Synchronized fun clear() { loadedPackage="";mapping=emptyMap();packResources=null }
     @Synchronized fun icon(packageName: String,component: String): Bitmap? {
         if(packageName.isBlank()) return null
         return runCatching {
-            val resources=pm.getResourcesForApplication(packageName)
             if(loadedPackage!=packageName) {
+                loadedPackage=packageName;mapping=emptyMap();packResources=null
+                val resources=pm.getResourcesForApplication(packageName)
+                packResources=resources
                 val xmlId=resources.getIdentifier("appfilter","xml",packageName)
                 mapping=if(xmlId!=0) resources.getXml(xmlId).use(::parse) else resources.assets.open("appfilter.xml").use { input ->
                     val limited=input.readBytesLimited(2*1024*1024)
                     val parser=Xml.newPullParser(); parser.setInput(limited.inputStream(),"UTF-8");parse(parser)
                 }
-                loadedPackage=packageName
             }
+            val resources=packResources ?: return null
             val name=mapping[component] ?: return null
             val id=resources.getIdentifier(name,"drawable",packageName)
             if(id==0) null else ResourcesCompat.getDrawable(resources,id,null)?.toBitmap(144,144)

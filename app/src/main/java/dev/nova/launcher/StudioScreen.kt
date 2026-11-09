@@ -15,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import dev.nova.core.*
 import kotlin.math.roundToInt
@@ -55,6 +57,7 @@ import kotlin.math.roundToInt
             StepSlider("Icon size",s.iconSize,36..72) { model.settings(s.copy(iconSize=it)) }
             StepSlider("Spacing",s.spacing,4..24) { model.settings(s.copy(spacing=it)) }
             ToggleRow("App labels","Show names below home and drawer icons.",s.labels) { model.settings(s.copy(labels=it)) }
+            ToggleRow("Monochrome icons","Keep a quiet home, or restore original app colors.",s.monochromeIcons) { model.settings(s.copy(monochromeIcons=it)) }
             ChoiceRow("Icon shape",IconShape.entries,s.iconShape) { model.settings(s.copy(iconShape=it)) }
             ChoiceRow("Typeface",FontChoice.entries,s.font) { model.settings(s.copy(font=it)) }
             StudioHeading("Widgets & icons")
@@ -116,7 +119,7 @@ import kotlin.math.roundToInt
 @Composable fun ToggleRow(title: String, description: String, checked: Boolean, onChange: (Boolean)->Unit) {
     Row(Modifier.fillMaxWidth().heightIn(min=64.dp),verticalAlignment=Alignment.CenterVertically) {
         Column(Modifier.weight(1f).padding(end=12.dp)) { Text(title,style=MaterialTheme.typography.titleMedium); Text(description,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant) }
-        Switch(checked,onChange)
+        Switch(checked,onChange,modifier=Modifier.semantics { contentDescription=title })
     }
 }
 @Composable fun StepSlider(title: String, value: Int, range: IntRange, onCommit: (Int)->Unit) {

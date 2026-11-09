@@ -43,7 +43,8 @@ import kotlin.math.ceil
             val width=maxWidth.value.toInt().coerceAtLeast(1)
             if(info==null) Text("Widget unavailable. Use Edit to remove it.")
             else AndroidView(factory={context->controller.host.createView(context,widget.id,info)},modifier=Modifier.fillMaxSize(),update={ view ->
-                view.updateAppWidgetSize(Bundle(),width,widget.height,width,widget.height)
+                if(android.os.Build.VERSION.SDK_INT>=31) view.updateAppWidgetSize(Bundle(),listOf(android.util.SizeF(width.toFloat(),widget.height.toFloat())))
+                else { @Suppress("DEPRECATION") view.updateAppWidgetSize(Bundle(),width,widget.height,width,widget.height) }
             })
         }
     }

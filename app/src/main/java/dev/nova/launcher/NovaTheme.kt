@@ -26,7 +26,7 @@ import dev.nova.core.FontChoice
 import dev.nova.core.Settings
 import dev.nova.core.ThemeMode
 
-fun backgroundColor(s: Settings): Color = when(s.theme) { ThemeMode.AMOLED -> Color.Black; ThemeMode.DARK -> Color(0xFF101418); ThemeMode.LIGHT -> Color(0xFFF5F6F1); ThemeMode.CUSTOM -> Color(s.background) }
+fun backgroundColor(s: Settings): Color = when(s.theme) { ThemeMode.AMOLED -> Color.Black; ThemeMode.DARK -> Color(0xFF121212); ThemeMode.LIGHT -> Color(0xFFF4F3EF); ThemeMode.CUSTOM -> Color(s.background) }
 fun foregroundColor(background: Color): Color = if(background.luminance() > 0.179f) Color(0xFF080A0C) else Color(0xFFF6F8F1)
 
 @OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
@@ -36,8 +36,9 @@ fun foregroundColor(background: Color): Color = if(background.luminance() > 0.17
     val light=bg.luminance()>0.179f
     val accent=Color(settings.accent)
     // A custom accent is used for filled actions; text links use a contrast-safe foreground.
-    val scheme=if(light) lightColorScheme(primary=if(settings.theme==ThemeMode.LIGHT) Color(0xFF365122) else fg,onPrimary=bg,primaryContainer=accent,onPrimaryContainer=foregroundColor(accent),background=bg,onBackground=fg,surface=bg,onSurface=fg,surfaceVariant=Color(0xFFE5E8DF),onSurfaceVariant=Color(0xFF41463C),outline=Color(0xFF747A6D))
-        else darkColorScheme(primary=if(settings.theme==ThemeMode.CUSTOM) fg else accent,onPrimary=Color.Black,primaryContainer=accent,onPrimaryContainer=foregroundColor(accent),background=bg,onBackground=fg,surface=bg,onSurface=fg,surfaceVariant=Color(0xFF20262B),onSurfaceVariant=Color(0xFFC4CBC2),outline=Color(0xFF899186))
+    val scheme=(if(light) lightColorScheme(primary=if(settings.theme==ThemeMode.LIGHT) Color(0xFF9F211C) else fg,onPrimary=bg,primaryContainer=accent,onPrimaryContainer=foregroundColor(accent),background=bg,onBackground=fg,surface=bg,onSurface=fg,surfaceVariant=Color(0xFFE5E4E0),onSurfaceVariant=Color(0xFF444444),outline=Color(0xFF747A6D))
+        else darkColorScheme(primary=fg,onPrimary=Color.Black,primaryContainer=accent,onPrimaryContainer=foregroundColor(accent),background=bg,onBackground=fg,surface=bg,onSurface=fg,surfaceVariant=Color(0xFF232323),onSurfaceVariant=Color(0xFFCCCCCC),outline=Color(0xFF858585)))
+        .copy(secondary=fg,onSecondary=bg,secondaryContainer=if(light) Color(0xFFD5D5D5) else Color(0xFF444444),onSecondaryContainer=fg,tertiary=accent,onTertiary=foregroundColor(accent),tertiaryContainer=if(light) Color(0xFFE7E7E7) else Color(0xFF303030),onTertiaryContainer=fg,surfaceTint=Color.Transparent,surfaceContainer=if(light) Color(0xFFECEBE7) else Color(0xFF1D1D1D),surfaceContainerHigh=if(light) Color(0xFFE5E4E0) else Color(0xFF262626),surfaceContainerHighest=if(light) Color(0xFFDAD9D5) else Color(0xFF333333),surfaceContainerLow=if(light) Color(0xFFF0EFEB) else Color(0xFF191919),surfaceContainerLowest=bg)
     val family=when(settings.font) { FontChoice.OUTFIT -> FontFamily(Font(R.font.outfit,variationSettings=FontVariation.Settings(FontVariation.weight(400)))); FontChoice.SYSTEM -> FontFamily.SansSerif; FontChoice.SERIF -> FontFamily.Serif }
     val base=Typography()
     val typography=remember(family) { Typography(
@@ -49,7 +50,7 @@ fun foregroundColor(background: Color): Color = if(background.luminance() > 0.17
     ) }
     val context=LocalContext.current
     SideEffect {
-        (context as? Activity)?.window?.let { window ->
+        context.findActivity()?.window?.let { window ->
             WindowCompat.getInsetsController(window,window.decorView).apply { isAppearanceLightStatusBars=light; isAppearanceLightNavigationBars=light }
             if(settings.systemWallpaper) window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER) else window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
         }
@@ -65,4 +66,10 @@ fun foregroundColor(background: Color): Color = if(background.luminance() > 0.17
     val shape=RoundedCornerShape(28.dp)
     Box(modifier.clip(shape).background(if(glass) Brush.verticalGradient(listOf(surface.copy(alpha=.96f),surface.copy(alpha=.84f))) else Brush.linearGradient(listOf(surface,surface)))
         .border(1.dp,MaterialTheme.colorScheme.outline.copy(alpha=if(glass) .35f else .12f),shape)) { content() }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when(this) {
+    is Activity -> this
+    is android.content.ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

@@ -12,3 +12,6 @@ NOVA; futuristic, premium, AMOLED and optional glass surfaces. Inspired by Clean
 Offline core; no root, accessibility interception, fabricated apps, or privileged setup. User-controlled default HOME role, usage consent and widget binding. Persistent pages, dock, folders, themes and portable backups.
 ## Accessibility
 48dp controls, readable contrast, system font scaling, semantic labels and system animation preferences.
+
+## Updated user direction
+Nothing OS–inspired visual language and a functional control centre. Inspiration only; NOVA is independent and not affiliated with Nothing.

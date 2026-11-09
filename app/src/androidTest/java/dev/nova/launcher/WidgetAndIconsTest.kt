@@ -45,6 +45,13 @@ class WidgetAndIconsTest {
         val parser=Xml.newPullParser();parser.setInput("<resources><item component='ComponentInfo{dev.example/.Main}' drawable='sample'/><item component='bad' drawable='bad'/></resources>".reader())
         assertEquals(mapOf("dev.example/dev.example.Main" to "sample"),IconPacks.parse(parser))
     }
+    @Test fun installedStaticIconPackLoadsActualDrawable() = runBlocking {
+        val packs=IconPacks(context)
+        assertTrue(packs.discover().any { it.packageName==instrumentation.context.packageName })
+        val bitmap=packs.icon(instrumentation.context.packageName,"dev.nova.launcher/dev.nova.launcher.MainActivity")
+        assertNotNull(bitmap)
+        assertEquals(android.graphics.Color.GREEN,bitmap!!.getPixel(bitmap.width/2,bitmap.height/2))
+    }
     @Test fun missingIconPackFallsBackToRealIcon() = runBlocking {
         val catalog=AppCatalog(context)
         val app=catalog.discover().first()

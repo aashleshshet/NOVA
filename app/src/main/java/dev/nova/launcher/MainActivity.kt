@@ -20,6 +20,8 @@ import java.io.File
 
 class MainActivity : ComponentActivity() {
     val model: LauncherViewModel by viewModels()
+    lateinit var controls: ControlCentreController
+        private set
     lateinit var widgets: WidgetController
         private set
     private val roleResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { model.refresh() }
@@ -77,9 +79,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState); enableEdgeToEdge()
         widgets=WidgetController(this,model)
+        controls=ControlCentreController(this)
         lifecycleScope.launch { model.state.collect { it?.let(widgets::reconcile) } }
         setContent { NovaApp(model,this,homeSignal.intValue) }
     }
+    override fun onDestroy() { controls.dispose(); super.onDestroy() }
     override fun onStart() { super.onStart(); widgets.start() }
     override fun onStop() { widgets.stop(); super.onStop() }
     @Deprecated("Platform widget host configuration callback")

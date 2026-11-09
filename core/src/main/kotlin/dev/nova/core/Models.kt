@@ -4,13 +4,13 @@ import kotlinx.serialization.Serializable
 
 @Serializable enum class ThemeMode { AMOLED, DARK, LIGHT, CUSTOM }
 @Serializable enum class SortOrder { NAME, RECENT, MOST_USED }
-@Serializable enum class GestureAction { NONE, DRAWER, SEARCH, STUDIO, SYSTEM_SETTINGS }
+@Serializable enum class GestureAction { NONE, DRAWER, SEARCH, STUDIO, CONTROL_CENTRE, SYSTEM_SETTINGS }
 @Serializable enum class IconShape { ORIGINAL, CIRCLE, ROUNDED }
 @Serializable enum class FontChoice { OUTFIT, SYSTEM, SERIF }
 
 @Serializable data class Settings(
     val theme: ThemeMode = ThemeMode.AMOLED,
-    val accent: Long = 0xFFD6F4A0,
+    val accent: Long = 0xFFFF4A44,
     val background: Long = 0xFF12171D,
     val glass: Boolean = true,
     val columns: Int = 4,
@@ -18,13 +18,14 @@ import kotlinx.serialization.Serializable
     val iconSize: Int = 52,
     val spacing: Int = 12,
     val labels: Boolean = true,
+    val monochromeIcons: Boolean = true,
     val font: FontChoice = FontChoice.OUTFIT,
-    val iconShape: IconShape = IconShape.ROUNDED,
+    val iconShape: IconShape = IconShape.CIRCLE,
     val iconPack: String = "",
     val systemWallpaper: Boolean = false,
     val sort: SortOrder = SortOrder.NAME,
     val swipeUp: GestureAction = GestureAction.DRAWER,
-    val swipeDown: GestureAction = GestureAction.SEARCH,
+    val swipeDown: GestureAction = GestureAction.CONTROL_CENTRE,
     val doubleTap: GestureAction = GestureAction.NONE,
     val suggestions: Boolean = false,
     val usageConsent: Boolean = false,

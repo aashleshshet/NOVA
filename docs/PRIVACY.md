@@ -5,4 +5,4 @@ Suggestions are off by default. Explicit opt-in records only launches made throu
 
 Backups exclude usage history, consent and device-specific widget IDs. Android cloud backup and device transfer are disabled; a deliberate Storage Access Framework JSON export is the only NOVA backup. The user's chosen document provider controls where that export is stored.
 
-Gestures apply only within the inset home clock/empty space. NOVA requests no AccessibilityService, device-admin privileges, root, notification access or gesture exclusions.
+Gestures apply only within the inset home clock/empty space. NOVA requests no AccessibilityService, device-admin privileges, root, notification access or gesture exclusions. The control centre reads network and battery status locally. Flashlight requests CAMERA only when tapped; no camera preview, capture or storage is implemented. Brightness requires the user's separate Modify system settings grant. Media volume uses AudioManager. Connectivity, Bluetooth and focus changes open Android-owned settings.

@@ -1,6 +1,6 @@
 # Delivery log
 
-## Phase 1 — Foundation (in progress)
+## Phase 1 — Foundation
 Created independent Compose application, pure Kotlin core, HOME manifest, DataStore design, wrapper and CI. Reference and license audit in REPOSITORY_AUDIT.md. Java/Gradle downloads required before validation. No build success claimed yet.
 
 Phase 1 checks: `:core:test :app:assembleDebug :app:lintDebug` PASS (4 JVM tests, installable foundation APK, lint completed). Added instrumentation tests for HOME resolution and DataStore recreation; execution deferred to emulator validation. Important files: settings/build Gradle files, core/Models.kt and StateCodec.kt, StateStore.kt, AndroidManifest.xml, .github/workflows/android.yml. No implementation blocker remains; proceed to real launcher functionality.
@@ -29,3 +29,13 @@ Checks: build/lint PASS; 12 core tests PASS; all 5 emulator tests PASS, includin
 Added configurable swipe up/down and double-tap actions in inset clock/empty home areas, preserving Android edge gestures and widget interactions. Added opt-in local launch ranking with expiry and bounded state, separate explicit consent for UsageEvents, permission-safe fallback, reset boundary, and disable/delete controls. Search gesture focuses the real app search. No network permission. Important files: HomeGestures.kt, UsageRanking.kt, Suggestions.kt, StudioScreen.kt, PRIVACY.md.
 
 Checks: 16 JVM tests PASS, including privacy gates, reset/disable, retention and removed-app filtering; assembleDebug/lintDebug PASS. Android permission-denial and gesture UI scenarios proceed in Phase 7. No blocker.
+
+## User-directed visual revision during Phase 7
+Adopted Nothing OS-inspired monochrome design, dot-matrix clock, optional grayscale circular icons, restrained red state color, and a real control centre. Control centre provides local battery/network status, AudioManager volume, permission-gated CameraManager flashlight and system brightness, plus Android-owned Internet/Bluetooth/DND panels. Added CONTROL_CENTRE gesture and swipe-down default. No hidden APIs or notification-shade impersonation.
+
+Initial expanded Compose suite found outdated Espresso incompatibility with Android 16, a child long-press handler consuming drag, and two test assumptions (widget dialog text and task-return teardown). Updated AndroidX test runtime, disabled child long-press while dragging, and corrected the system-dialog/task-return tests. Subsequent 18-test emulator suite passed. Light status-bar appearance now has an explicit WindowInsetsController assertion; snapshots wait for SystemUI rendering.
+
+## Phase 7 — Validation
+Final local suite: 16 core JVM tests and 20 Android/Compose tests PASS; debug build, instrumentation build and lint PASS. Actual force-stop and reboot preserve folders, dock, settings and bound widgets; NOVA remains default HOME. Uninstalling the test widget provider removes its persisted placement. Fixed folder drag interception and added a regression test. CPU/background persistence parsing and icon-pack negative caching reduce repeated work. Important files: ControlCentre.kt, HomeClock.kt, LauncherUiTest.kt, RestartScenarioTest.kt, WidgetAndIconsTest.kt, scripts/*-check.py, docs/VALIDATION.md and screenshots.
+
+Only a disposable Android emulator was tested. Physical devices and vendor integrations remain pending; validation scope and limitations are explicit in VALIDATION.md. Performance measurements are debug/emulator smoke data, not a frame-rate guarantee. Proceed to delivery after all available functional checks passed.
