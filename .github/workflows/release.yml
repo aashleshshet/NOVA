@@ -8,7 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      NOVA_KEYSTORE_FILE: ${{ runner.temp }}/nova-release.jks
       NOVA_KEYSTORE_PASSWORD: ${{ secrets.NOVA_KEYSTORE_PASSWORD }}
       NOVA_KEY_ALIAS: ${{ secrets.NOVA_KEY_ALIAS }}
       NOVA_KEY_PASSWORD: ${{ secrets.NOVA_KEY_PASSWORD }}
@@ -36,6 +35,8 @@ jobs:
               exit 1
             fi
           done
+          NOVA_KEYSTORE_FILE="$RUNNER_TEMP/nova-release.jks"
+          echo "NOVA_KEYSTORE_FILE=$NOVA_KEYSTORE_FILE" >> "$GITHUB_ENV"
           umask 077
           printf '%s' "$NOVA_KEYSTORE_BASE64" | base64 --decode > "$NOVA_KEYSTORE_FILE"
       - name: Validate and build
@@ -55,4 +56,4 @@ jobs:
             docs/RELEASE_NOTES.md
       - name: Remove temporary key
         if: always()
-        run: rm -f "$NOVA_KEYSTORE_FILE"
+        run: rm -f "$RUNNER_TEMP/nova-release.jks"
