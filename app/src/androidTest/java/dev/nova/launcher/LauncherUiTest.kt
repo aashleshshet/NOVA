@@ -116,11 +116,23 @@ class LauncherUiTest {
         val provider=runBlocking { controller.providers().first { it.provider.className==FixtureWidget::class.java.name } }
         val before=controller.host.appWidgetIds.toSet()
         compose.runOnIdle { controller.begin(provider,"home") }
-        val shown=device.wait(Until.hasObject(By.pkg("com.android.settings")),5000)
-        val dump=java.io.ByteArrayOutputStream();device.dumpWindowHierarchy(dump)
-        assertTrue("Binding dialog missing: $dump; pending=${controller.pendingId()}; message=${compose.activity.model.message.value}",shown)
-        device.pressBack()
-        compose.waitUntil(5000) { controller.pendingId()==android.appwidget.AppWidgetManager.INVALID_APPWIDGET_ID }
+        try {
+            // Android 10's accessibility service dereferences an unbound widget provider.
+            // Observe the foreground system Activity through test-shell state instead of
+            // querying accessibility nodes while a host ID is waiting for user consent.
+            var shown=false
+            val deadline=SystemClock.uptimeMillis()+5000
+            while(!shown && SystemClock.uptimeMillis()<deadline) {
+                val dump=android.os.ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand("dumpsys activity activities")).bufferedReader().use { it.readText() }
+                shown=dump.lineSequence().any { (it.contains("mResumedActivity") || it.contains("topResumedActivity")) && it.contains("com.android.settings") }
+                if(!shown) SystemClock.sleep(100)
+            }
+            assertTrue("Android widget consent Activity did not open",shown)
+        } finally {
+            // Always close consent, including failed assertions, so later tests have no unbound IDs.
+            device.pressBack()
+            compose.waitUntil(5000) { controller.pendingId()==android.appwidget.AppWidgetManager.INVALID_APPWIDGET_ID }
+        }
         assertEquals(before,controller.host.appWidgetIds.toSet())
     }
     @Test fun controlCentreAndVolumeUseRealSystemState() {

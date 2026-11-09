@@ -37,5 +37,5 @@ for _ in range(8):
     run('shell','input','swipe',str(w//2),str(h//3),str(w//2),str(h*4//5),'250')
 (out/'gfxinfo.txt').write_text(run('shell','dumpsys','gfxinfo','dev.nova.launcher'))
 (out/'meminfo.txt').write_text(run('shell','dumpsys','meminfo','dev.nova.launcher'))
-result={'environment':'API 36.1 arm64 emulator, SwiftShader, debug build','cold_start_total_ms':times,'median_ms':statistics.median(times),'scroll_swipes':16}
+result={'environment':{'sdk':run('shell','getprop','ro.build.version.sdk').strip(),'abi':run('shell','getprop','ro.product.cpu.abi').strip(),'debuggable':'DEBUGGABLE' in run('shell','dumpsys','package','dev.nova.launcher'),'serial':serial},'cold_start_total_ms':times,'median_ms':statistics.median(times),'scroll_swipes':16}
 (out/'performance.json').write_text(json.dumps(result,indent=2));print(json.dumps(result,indent=2))

@@ -1,13 +1,13 @@
 # NOVA design system
 
-Native Android / Material 3. The supplied brief pins the visual direction: an uncluttered AMOLED canvas, pale lime accent, Outfit typography and a shallow glass dock. Operate mode: launch apps in one tap; edit through explicit controls and optional direct manipulation.
+Native Android / Material 3. The final visual direction is Nothing OS-inspired: an uncluttered monochrome canvas, dot-matrix clock, restrained red accents, Outfit typography and a shallow glass dock. Operate mode: launch apps in one tap; edit through explicit controls and optional direct manipulation.
 
 ## Tokens
-- AMOLED background #000000; dark #101418; light #F5F6F1; custom opaque background.
-- Accent #D6F4A0; foreground chosen from black/white by background luminance. Custom accents receive an independently contrast-safe on-primary.
-- Display: Outfit light; 64sp clock. Material headline/title/body/label scale for controls. Optional platform sans or serif.
+- AMOLED background #000000; dark #121212; light #F4F3EF; custom opaque background.
+- Accent #FF4A44; foreground chosen from black/white by background luminance. Custom accents receive an independently contrast-safe on-primary.
+- Display: vector dot-matrix live clock; Outfit controls. Material headline/title/body/label scale for controls. Optional platform sans or serif.
 - Spacing: 4/8/12/16/24/32dp. Touch targets at least 48dp. Grid user-controlled 3–6 columns; dock 3–6 slots.
-- Shape: 28dp main surfaces, 16dp icon masks, standard Material controls.
+- Shape: 28dp main surfaces, circular icon defaults with optional rounded or square masks, standard Material controls.
 - Glass: translucent surface with one thin highlight, restrained sheen and solid fallback under power-saving or reduced effects. No per-frame wallpaper blur or screenshot sampling.
 - Motion: Material fade/size transitions; system animation-duration scale respected by Compose. No perpetual decorative animation.
 

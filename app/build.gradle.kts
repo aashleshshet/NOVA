@@ -14,8 +14,18 @@ android {
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
+    val releaseKeystore = providers.environmentVariable("NOVA_KEYSTORE_FILE").orNull
+    if (releaseKeystore != null) {
+        signingConfigs.create("ownerRelease") {
+            storeFile = file(releaseKeystore)
+            storePassword = providers.environmentVariable("NOVA_KEYSTORE_PASSWORD").get()
+            keyAlias = providers.environmentVariable("NOVA_KEY_ALIAS").get()
+            keyPassword = providers.environmentVariable("NOVA_KEY_PASSWORD").get()
+        }
+    }
     buildTypes {
         release {
+            if (releaseKeystore != null) signingConfig = signingConfigs.getByName("ownerRelease")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

@@ -26,3 +26,13 @@ Run `scripts/emulator-tests.sh` after building both APKs. `scripts/restart-check
 ## Failures fixed during validation
 
 Old Espresso used an unavailable Android 16 reflection API; upgraded AndroidX Test. A long-press child consumed editing drags; disabled child long-press while editing. Fixed widget-size assertion to include Android host padding and switched the external test widget provider to Java so its process does not depend on the test runner's Kotlin classpath. Corrected tests that assumed an English widget approval label and re-launched a task during ActivityScenario teardown. Explicit status-bar contrast assertion and delayed screenshot verify SystemUI updates.
+
+## Local performance smoke profile
+
+API 36.1 arm64, SwiftShader GPU, debug APK, five independently forced cold starts: 821 / 480 / 660 / 678 / 668 ms (`am start -W TotalTime`, median 668 ms). PSS after opening the drawer was 185,664 KB (~181 MB); RSS 306,364 KB. The small 19-frame sample recorded 8 janky frames (42.11%) and 42 ms median frame time. Sixteen swipe inputs were sent, but the installed-app catalog fits much of the viewport, so this is insufficient evidence for sustained scrolling performance. No 60/120 Hz or low-memory guarantee is claimed. A real-device release-build trace and a larger installed-app catalog remain necessary.
+
+The first startup measurement produced zero because Android automatically restarted the selected HOME after force-stop. The profiling script now temporarily selects another actual HOME, asserts `LaunchState: COLD`, then restores the original default. The invalid zero measurements are excluded.
+
+Optimized R8 build smoke: signature verified with a disposable debug certificate, installation/launch succeeded. PSS was 40,574 KB (~40 MB), RSS 137,740 KB. Cold starts 1607 / 2508 / 607 / 1514 / 2698 ms, median 1607 ms; 17 sampled frames, 10 janky (58.82%). This concurrent host/emulator run is too variable for a debug-versus-release speed comparison. Owner signing remains untested.
+
+CI API 35 initially passed all 20 tests. API 29 exposed an Android framework accessibility null dereference while querying the UI with an unbound widget ID. The cancellation test now observes the foreground system Activity using test-shell state during that window and always cancels in `finally`, preventing a dangling test ID from affecting later cases. No production permission or API behavior was bypassed. Rerun results are recorded below when available.
