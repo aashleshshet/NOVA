@@ -32,6 +32,6 @@ Use JDK 17, Android SDK 36, Build Tools 36.1.0. Set `ANDROID_HOME` or untracked 
 ./gradlew :app:connectedDebugAndroidTest  # emulator or dedicated test device
 ```
 
-Debug APK: `app/build/outputs/apk/debug/app-debug.apk`. CI uploads it and reports. GitHub emulator CI covers API 29/35; see its actual run status before treating it as verified. API 36.1 was tested locally. Physical-device validation remains pending.
+Debug APK: `app/build/outputs/apk/debug/app-debug.apk`. CI uploads it and reports. 20 Android/Compose tests pass on API 29/35 in GitHub CI and API 36.1 locally; 16 core JVM tests pass. See the linked validation record for exact runs and scope. Physical-device validation remains pending.
 
 `:core` contains versioned state, validation, layout operations and suggestion ranking. `:app` contains Compose UI, DataStore and public Android integrations. [Architecture](docs/ARCHITECTURE.md), [reference/license audit](docs/REPOSITORY_AUDIT.md), [phase log](docs/PHASES.md), [icon-pack limits](docs/ICON_PACKS.md), [privacy](docs/PRIVACY.md), [design](DESIGN.md).
